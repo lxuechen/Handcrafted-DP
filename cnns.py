@@ -130,13 +130,14 @@ def main(dataset, augment=False, use_scattering=False, size=None,
             flat_count += 1
             if flat_count >= 20 and early_stop:
                 print("plateau...")
+                # Write to file.
+                record_path = os.path.join('.', 'record', f'{dataset}-{seed}.json')
+                os.makedirs(os.path.dirname(record_path), exist_ok=True)
+                with open(record_path, 'w') as f:
+                    json.dump({'best_acc': best_acc, 'seed': seed, 'dataset': dataset}, f)
+                import logging
+                logging.warning(f'Wrote to file: {record_path}')
                 return
-
-    # Write to file.
-    record_path = os.path.join('.', 'record', f'{dataset}-{seed}.json')
-    os.makedirs(os.path.dirname(record_path), exist_ok=True)
-    with open(record_path, 'w') as f:
-        json.dump({'best_acc': best_acc, 'seed': seed, 'dataset': dataset}, f)
 
 
 if __name__ == '__main__':

@@ -1,15 +1,16 @@
 import argparse
+import json
 import os
 
 import torch
 import torch.nn as nn
 from opacus import PrivacyEngine
 
-from train_utils import get_device, train, test
 from data import get_data, get_scatter_transform, get_scattered_loader
-from models import CNNS, get_num_params
 from dp_utils import ORDERS, get_privacy_spent, get_renyi_divergence, scatter_normalization
 from log import Logger
+from models import CNNS, get_num_params
+from train_utils import get_device, test, train
 
 
 def main(dataset, augment=False, use_scattering=False, size=None,
@@ -17,8 +18,8 @@ def main(dataset, augment=False, use_scattering=False, size=None,
          lr=1, optim="SGD", momentum=0.9, nesterov=False,
          noise_multiplier=1, max_grad_norm=0.1, epochs=100,
          input_norm=None, num_groups=None, bn_noise_multiplier=None,
-         max_epsilon=None, logdir=None, early_stop=True):
-
+         max_epsilon=None, logdir=None, early_stop=True, seed=0):
+    torch.manual_seed(seed)
     logger = Logger(logdir)
     device = get_device()
 
@@ -67,10 +68,10 @@ def main(dataset, augment=False, use_scattering=False, size=None,
     model.to(device)
 
     if use_scattering and augment:
-            model = nn.Sequential(scattering, model)
-            train_loader = torch.utils.data.DataLoader(
-                train_data, batch_size=mini_batch_size, shuffle=True,
-                num_workers=1, pin_memory=True, drop_last=True)
+        model = nn.Sequential(scattering, model)
+        train_loader = torch.utils.data.DataLoader(
+            train_data, batch_size=mini_batch_size, shuffle=True,
+            num_workers=1, pin_memory=True, drop_last=True)
     else:
         # pre-compute the scattering transform if necessery
         train_loader = get_scattered_loader(train_loader, scattering, device,
@@ -131,6 +132,12 @@ def main(dataset, augment=False, use_scattering=False, size=None,
                 print("plateau...")
                 return
 
+    # Write to file.
+    record_path = os.path.join('.', 'record', f'{dataset}-{seed}.json')
+    os.makedirs(os.path.dirname(record_path), exist_ok=True)
+    with open(record_path, 'w') as f:
+        json.dump({'best_acc': best_acc, 'seed': seed, 'dataset': dataset}, f)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -154,5 +161,6 @@ if __name__ == '__main__':
     parser.add_argument('--early_stop', type=bool, default=True)
     parser.add_argument('--sample_batches', action="store_true")
     parser.add_argument('--logdir', default=None)
+    parser.add_argument('--seed', type=int, default=0)
     args = parser.parse_args()
     main(**vars(args))

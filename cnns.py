@@ -89,8 +89,8 @@ def main(dataset, augment=False, use_scattering=False, size=None,
 
     privacy_engine = PrivacyEngine(
         model,
-        bs,
-        len(train_data),
+        batch_size=bs,
+        sample_size=len(train_data),
         alphas=ORDERS,
         noise_multiplier=noise_multiplier,
         max_grad_norm=max_grad_norm,
